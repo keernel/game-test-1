@@ -1,0 +1,75 @@
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quest Face Target</title>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0f;font-family:system-ui}
+#hud{position:fixed;top:15px;left:50%;transform:translateX(-50%);z-index:5;color:white;background:#000a;padding:10px 16px;border-radius:14px;text-align:center;pointer-events:none}
+#score{font-size:22px;font-weight:800}</style></head><body>
+<div id="hud"><div id="score">🎯 Acertos: 0</div><small>Aponte o controle e aperte o gatilho</small></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {VRButton} from 'three/addons/webxr/VRButton.js';
+
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x10131a);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,100);
+camera.position.set(0,1.6,0);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.xr.enabled=true; renderer.outputColorSpace=THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement); document.body.appendChild(VRButton.createButton(renderer));
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x445066,2.2));
+const dl=new THREE.DirectionalLight(0xffffff,2); dl.position.set(2,4,2); scene.add(dl);
+
+const floor=new THREE.Mesh(new THREE.CircleGeometry(5,64),new THREE.MeshStandardMaterial({color:0x222833}));
+floor.rotation.x=-Math.PI/2; scene.add(floor);
+
+const group=new THREE.Group(); group.position.set(0,1.6,-2.7); scene.add(group);
+const frame=new THREE.Mesh(new THREE.BoxGeometry(1.65,2.15,.12),new THREE.MeshStandardMaterial({color:0x252525}));
+group.add(frame);
+const tex=new THREE.TextureLoader().load('target.jpg'); tex.colorSpace=THREE.SRGBColorSpace;
+const photo=new THREE.Mesh(new THREE.PlaneGeometry(1.5,2),new THREE.MeshBasicMaterial({map:tex}));
+photo.position.z=.07; group.add(photo);
+
+for(const r of [.78,.57,.36]){
+ const ring=new THREE.Mesh(new THREE.RingGeometry(r-.012,r,.01,64),
+ new THREE.MeshBasicMaterial({color:0xff3030,transparent:true,opacity:.8,side:THREE.DoubleSide}));
+ ring.position.z=.085; group.add(ring);
+}
+
+const raycaster=new THREE.Raycaster(), controllers=[];
+function shoot(ray){
+ raycaster.ray.copy(ray);
+ const hit=raycaster.intersectObject(photo)[0];
+ if(hit){score++;document.querySelector('#score').textContent='🎯 Acertos: '+score;
+   group.scale.set(1.08,1.08,1.08); setTimeout(()=>group.scale.set(1,1,1),120);}
+}
+for(let i=0;i<2;i++){
+ const c=renderer.xr.getController(i); scene.add(c);
+ const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(),new THREE.Vector3(0,0,-2)]),
+  new THREE.LineBasicMaterial({color:0x66ddff}));
+ c.add(line); c.userData.line=line;
+ c.addEventListener('connected',()=>line.visible=true);
+ c.addEventListener('disconnected',()=>line.visible=false);
+ c.addEventListener('selectstart',()=>{
+   const ray=new THREE.Ray();
+   ray.origin.setFromMatrixPosition(c.matrixWorld);
+   ray.direction.set(0,0,-1).applyQuaternion(c.quaternion).normalize();
+   shoot(ray);
+ }); controllers.push(c);
+}
+let score=0;
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(renderer.xr.isPresenting)return;
+ const m=new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);
+ raycaster.setFromCamera(m,camera); shoot(raycaster.ray);
+});
+renderer.setAnimationLoop(t=>{
+ const s=t/1000; group.position.x=Math.sin(s*.8)*.35;
+ group.position.y=1.6+Math.sin(s*1.1)*.08;
+ group.rotation.y=Math.sin(s*.55)*.12;
+ renderer.render(scene,camera);
+});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>

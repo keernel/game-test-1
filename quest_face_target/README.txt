@@ -1,0 +1,1 @@
+Coloque index.html e target.jpg no GitHub Pages. Abra a URL no navegador do Meta Quest e toque em Enter VR. O jogo usa Three.js via CDN.
