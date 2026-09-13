@@ -1,11 +1,75 @@
 <!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quest Face Target</title>
-<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0f;font-family:system-ui}
+<style>
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  color: #ff3030;
+  font: 700 28px/1 Arial, sans-serif;
+  text-shadow: 0 0 8px rgba(255,48,48,.8);
+  pointer-events: none;
+}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0f;font-family:system-ui}
 #hud{position:fixed;top:15px;left:50%;transform:translateX(-50%);z-index:5;color:white;background:#000a;padding:10px 16px;border-radius:14px;text-align:center;pointer-events:none}
 #score{font-size:22px;font-weight:800}</style></head><body>
+<div id="crosshair">+</div>
 <div id="hud"><div id="score">🎯 Acertos: 0</div><small>Aponte o controle e aperte o gatilho</small></div>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}// Shooting / hit feedback.
+const raycaster = new THREE.Raycaster();
+const hitMarker = new THREE.Mesh(
+  new THREE.RingGeometry(0.045, 0.065, 20),
+  new THREE.MeshBasicMaterial({ color: 0xffd43b, side: THREE.DoubleSide })
+);
+hitMarker.visible = false;
+scene.add(hitMarker);
+
+function shoot(origin, direction) {
+  raycaster.set(origin, direction);
+  const hits = raycaster.intersectObject(target);
+  if (hits.length) {
+    score++;
+    scoreEl.textContent = `Score: ${score}`;
+    hitMarker.position.copy(hits[0].point);
+    hitMarker.lookAt(hits[0].point.clone().add(hits[0].face?.normal || new THREE.Vector3(0,0,1)));
+    hitMarker.visible = true;
+    setTimeout(() => hitMarker.visible = false, 120);
+    moveTarget();
+  }
+}
+
+controller.addEventListener('selectstart', () => {
+  const origin = new THREE.Vector3();
+  const direction = new THREE.Vector3(0, 0, -1);
+  controller.getWorldPosition(origin);
+  direction.applyQuaternion(controller.getWorldQuaternion(new THREE.Quaternion())).normalize();
+  shoot(origin, direction);
+});
+
+// Desktop mouse/touch fallback.
+window.addEventListener('click', (event) => {
+  if (renderer.xr.isPresenting) return;
+  const ndc = new THREE.Vector2(
+    (event.clientX / window.innerWidth) * 2 - 1,
+    -(event.clientY / window.innerHeight) * 2 + 1
+  );
+  raycaster.setFromCamera(ndc, camera);
+  const hits = raycaster.intersectObject(target);
+  if (hits.length) {
+    score++;
+    scoreEl.textContent = `Score: ${score}`;
+    hitMarker.position.copy(hits[0].point);
+    hitMarker.lookAt(camera.position);
+    hitMarker.visible = true;
+    setTimeout(() => hitMarker.visible = false, 120);
+    moveTarget();
+  }
+});
+
+renderer.setAnimationLoop(render);
+</script>
 <script type="module">
 import * as THREE from 'three';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
