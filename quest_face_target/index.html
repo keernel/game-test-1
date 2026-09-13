@@ -2,74 +2,13 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quest Face Target</title>
 <style>
-#crosshair {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 20;
-  color: #ff3030;
-  font: 700 28px/1 Arial, sans-serif;
-  text-shadow: 0 0 8px rgba(255,48,48,.8);
-  pointer-events: none;
-}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0f;font-family:system-ui}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080a0f;font-family:system-ui}
 #hud{position:fixed;top:15px;left:50%;transform:translateX(-50%);z-index:5;color:white;background:#000a;padding:10px 16px;border-radius:14px;text-align:center;pointer-events:none}
-#score{font-size:22px;font-weight:800}</style></head><body>
-<div id="crosshair">+</div>
-<div id="hud"><div id="score">🎯 Acertos: 0</div><small>Aponte o controle e aperte o gatilho</small></div>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}// Shooting / hit feedback.
-const raycaster = new THREE.Raycaster();
-const hitMarker = new THREE.Mesh(
-  new THREE.RingGeometry(0.045, 0.065, 20),
-  new THREE.MeshBasicMaterial({ color: 0xffd43b, side: THREE.DoubleSide })
-);
-hitMarker.visible = false;
-scene.add(hitMarker);
-
-function shoot(origin, direction) {
-  raycaster.set(origin, direction);
-  const hits = raycaster.intersectObject(target);
-  if (hits.length) {
-    score++;
-    scoreEl.textContent = `Score: ${score}`;
-    hitMarker.position.copy(hits[0].point);
-    hitMarker.lookAt(hits[0].point.clone().add(hits[0].face?.normal || new THREE.Vector3(0,0,1)));
-    hitMarker.visible = true;
-    setTimeout(() => hitMarker.visible = false, 120);
-    moveTarget();
-  }
-}
-
-controller.addEventListener('selectstart', () => {
-  const origin = new THREE.Vector3();
-  const direction = new THREE.Vector3(0, 0, -1);
-  controller.getWorldPosition(origin);
-  direction.applyQuaternion(controller.getWorldQuaternion(new THREE.Quaternion())).normalize();
-  shoot(origin, direction);
-});
-
-// Desktop mouse/touch fallback.
-window.addEventListener('click', (event) => {
-  if (renderer.xr.isPresenting) return;
-  const ndc = new THREE.Vector2(
-    (event.clientX / window.innerWidth) * 2 - 1,
-    -(event.clientY / window.innerHeight) * 2 + 1
-  );
-  raycaster.setFromCamera(ndc, camera);
-  const hits = raycaster.intersectObject(target);
-  if (hits.length) {
-    score++;
-    scoreEl.textContent = `Score: ${score}`;
-    hitMarker.position.copy(hits[0].point);
-    hitMarker.lookAt(camera.position);
-    hitMarker.visible = true;
-    setTimeout(() => hitMarker.visible = false, 120);
-    moveTarget();
-  }
-});
-
-renderer.setAnimationLoop(render);
-</script>
+#score{font-size:22px;font-weight:800}
+#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;color:#ff3030;font:700 28px/1 Arial,sans-serif;text-shadow:0 0 8px #ff3030;pointer-events:none}
+</style></head><body>
+<div id="hud"><div id="score">🎯 Acertos: 0</div><small>Aponte a arma e aperte o gatilho</small></div><div id="crosshair">+</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
 import {VRButton} from 'three/addons/webxr/VRButton.js';
@@ -108,21 +47,96 @@ function shoot(ray){
  if(hit){score++;document.querySelector('#score').textContent='🎯 Acertos: '+score;
    group.scale.set(1.08,1.08,1.08); setTimeout(()=>group.scale.set(1,1,1),120);}
 }
+function createGun(){
+ const gun=new THREE.Group();
+
+ const body=new THREE.Mesh(
+  new THREE.BoxGeometry(.075,.13,.28),
+  new THREE.MeshStandardMaterial({color:0x252b35,metalness:.8,roughness:.25})
+ );
+ body.position.set(0,-.035,-.13); gun.add(body);
+
+ const barrel=new THREE.Mesh(
+  new THREE.CylinderGeometry(.025,.032,.22,16),
+  new THREE.MeshStandardMaterial({color:0x11151c,metalness:.9,roughness:.18})
+ );
+ barrel.rotation.x=Math.PI/2; barrel.position.set(0,.015,-.28); gun.add(barrel);
+
+ const grip=new THREE.Mesh(
+  new THREE.BoxGeometry(.065,.18,.075),
+  new THREE.MeshStandardMaterial({color:0x171b23,metalness:.45,roughness:.45})
+ );
+ grip.rotation.x=-.22; grip.position.set(0,-.13,-.06); gun.add(grip);
+
+ const sight=new THREE.Mesh(
+  new THREE.TorusGeometry(.035,.006,8,20),
+  new THREE.MeshBasicMaterial({color:0x22d3ee})
+ );
+ sight.position.set(0,.065,-.16); gun.add(sight);
+
+ const dot=new THREE.Mesh(
+  new THREE.SphereGeometry(.008,10,10),
+  new THREE.MeshBasicMaterial({color:0xff3030})
+ );
+ dot.position.set(0,.065,-.19); gun.add(dot);
+
+ return gun;
+}
+
+function makeLaser(){
+ return new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([
+   new THREE.Vector3(),new THREE.Vector3(0,0,-8)
+  ]),
+  new THREE.LineBasicMaterial({color:0x38bdf8,transparent:true,opacity:.55})
+ );
+}
+
+const raycaster=new THREE.Raycaster(), controllers=[];
+
+function shoot(ray){
+ raycaster.ray.copy(ray);
+ const hit=raycaster.intersectObject(photo)[0];
+ if(hit){
+  score++;
+  document.querySelector('#score').textContent='🎯 Acertos: '+score;
+
+  const marker=new THREE.Mesh(
+   new THREE.RingGeometry(.045,.065,20),
+   new THREE.MeshBasicMaterial({color:0xffd43b,side:THREE.DoubleSide})
+  );
+  marker.position.copy(hit.point);
+  marker.lookAt(hit.point.clone().add(hit.face?.normal || new THREE.Vector3(0,0,1)));
+  scene.add(marker);
+  setTimeout(()=>scene.remove(marker),180);
+
+  group.scale.set(1.08,1.08,1.08);
+  setTimeout(()=>group.scale.set(1,1,1),120);
+ }
+}
+
 for(let i=0;i<2;i++){
  const c=renderer.xr.getController(i); scene.add(c);
- const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-  new THREE.Vector3(),new THREE.Vector3(0,0,-2)]),
-  new THREE.LineBasicMaterial({color:0x66ddff}));
- c.add(line); c.userData.line=line;
+
+ const gun=createGun();
+ c.add(gun);
+
+ const line=makeLaser();
+ c.add(line);
+ c.userData.line=line;
+
  c.addEventListener('connected',()=>line.visible=true);
  c.addEventListener('disconnected',()=>line.visible=false);
+
  c.addEventListener('selectstart',()=>{
-   const ray=new THREE.Ray();
-   ray.origin.setFromMatrixPosition(c.matrixWorld);
-   ray.direction.set(0,0,-1).applyQuaternion(c.quaternion).normalize();
-   shoot(ray);
- }); controllers.push(c);
+  const ray=new THREE.Ray();
+  ray.origin.setFromMatrixPosition(c.matrixWorld);
+  ray.direction.set(0,0,-1).applyQuaternion(c.getWorldQuaternion(new THREE.Quaternion())).normalize();
+  shoot(ray);
+ });
+ controllers.push(c);
 }
+
 let score=0;
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(renderer.xr.isPresenting)return;
