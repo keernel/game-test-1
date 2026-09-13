@@ -12,7 +12,7 @@
   font:600 12px/1 system-ui,sans-serif;
   pointer-events:none;
 }
-#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;color:#ff3030;font:700 28px/1 Arial;text-shadow:0 0 8px #ff3030;pointer-events:none}</style></head><body><div id="crosshair">+</div><div id="version-badge">v0.3 • ARMA + MIRA</div>
+#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:19;color:#ff3030;font:700 28px/1 Arial;text-shadow:0 0 8px #ff3030;pointer-events:none}</style></head><body><div id="crosshair">+</div><div id="version-badge">v0.9 • ROSTO 360° LENTO</div>
 <div id="hud"><div id="score">🎯 Acertos: 0</div><small>Aponte o controle e aperte o gatilho</small></div>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
 <script type="module">
@@ -26,32 +26,240 @@ const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.xr.enabled=true; renderer.outputColorSpace=THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement); document.body.appendChild(VRButton.createButton(renderer));
+// HUD 3D para o Meta Quest: DOM/CSS não é renderizado dentro da cena WebXR,
+// então o contador também existe como textura em um Sprite preso à câmera.
+const vrHudCanvas=document.createElement('canvas');
+vrHudCanvas.width=768; vrHudCanvas.height=180;
+const vrHudCtx=vrHudCanvas.getContext('2d');
+const vrHudTexture=new THREE.CanvasTexture(vrHudCanvas);
+vrHudTexture.colorSpace=THREE.SRGBColorSpace;
+
+const vrHud=new THREE.Sprite(new THREE.SpriteMaterial({
+  map:vrHudTexture,
+  transparent:true,
+  depthTest:false,
+  depthWrite:false
+}));
+vrHud.scale.set(.92,.216,1);
+vrHud.position.set(0,.62,-1.35);
+camera.add(vrHud);
+
+function updateVRScore(){
+  vrHudCtx.clearRect(0,0,vrHudCanvas.width,vrHudCanvas.height);
+
+  vrHudCtx.fillStyle='rgba(0,0,0,.78)';
+  vrHudCtx.beginPath();
+  vrHudCtx.roundRect(18,18,732,144,28);
+  vrHudCtx.fill();
+
+  vrHudCtx.strokeStyle='rgba(255,255,255,.16)';
+  vrHudCtx.lineWidth=3;
+  vrHudCtx.stroke();
+
+  vrHudCtx.textAlign='center';
+  vrHudCtx.textBaseline='middle';
+
+  vrHudCtx.fillStyle='#ffffff';
+  vrHudCtx.font='bold 58px Arial';
+  vrHudCtx.fillText('ACERTOS: '+score,384,72);
+
+  vrHudCtx.fillStyle='#cbd5e1';
+  vrHudCtx.font='28px Arial';
+  vrHudCtx.fillText('Aponte a arma e aperte o gatilho',384,120);
+
+  vrHudTexture.needsUpdate=true;
+}
+
 
 scene.add(new THREE.HemisphereLight(0xffffff,0x445066,2.2));
 const dl=new THREE.DirectionalLight(0xffffff,2); dl.position.set(2,4,2); scene.add(dl);
 
-const floor=new THREE.Mesh(new THREE.CircleGeometry(5,64),new THREE.MeshStandardMaterial({color:0x222833}));
-floor.rotation.x=-Math.PI/2; scene.add(floor);
+// --- Open countryside landscape (v0.5) ---
+scene.background = new THREE.Color(0x9ed8f5);
 
-const group=new THREE.Group(); group.position.set(0,1.6,-2.7); scene.add(group);
-const frame=new THREE.Mesh(new THREE.BoxGeometry(1.65,2.15,.12),new THREE.MeshStandardMaterial({color:0x252525}));
+// Large grassy ground.
+const floor=new THREE.Mesh(
+  new THREE.PlaneGeometry(80,80,1,1),
+  new THREE.MeshStandardMaterial({color:0x4f8b3a,roughness:1})
+);
+floor.rotation.x=-Math.PI/2;
+floor.position.y=-0.02;
+scene.add(floor);
+
+// Distant rolling hills.
+function makeHill(x,z,sx,sy,sz,color){
+  const hill=new THREE.Mesh(
+    new THREE.SphereGeometry(1,32,16),
+    new THREE.MeshStandardMaterial({color,roughness:1})
+  );
+  hill.scale.set(sx,sy,sz);
+  hill.position.set(x,sy-0.25,z);
+  scene.add(hill);
+}
+makeHill(-9,-12,8,2.8,3.5,0x5f8f48);
+makeHill(3,-15,11,3.4,4.5,0x6c9b50);
+makeHill(14,-11,8,2.5,3.5,0x5a8944);
+makeHill(-19,-7,7,2.4,3.0,0x6b9950);
+
+// Simple clouds for depth.
+function makeCloud(x,y,z,scale){
+  const cloud=new THREE.Group();
+  const mat=new THREE.MeshBasicMaterial({color:0xf4fbff,transparent:true,opacity:.82});
+  for(const [px,py,pz,s] of [[0,0,0,1],[.7,.05,0,.8],[-.7,.02,0,.75],[.25,.25,0,.7]]){
+    const puff=new THREE.Mesh(new THREE.SphereGeometry(.7,16,10),mat);
+    puff.position.set(px*s,py*s,pz);
+    puff.scale.set(1.5,0.75,0.9);
+    cloud.add(puff);
+  }
+  cloud.position.set(x,y,z);
+  cloud.scale.setScalar(scale);
+  scene.add(cloud);
+}
+makeCloud(-8,7,-18,1.8);
+makeCloud(8,8,-22,1.5);
+makeCloud(20,6,-16,1.2);
+
+// A few low-poly trees to reinforce the open field.
+function makeTree(x,z,s=1){
+  const tree=new THREE.Group();
+
+  const trunk=new THREE.Mesh(
+    new THREE.CylinderGeometry(.10,.14,.9,8),
+    new THREE.MeshStandardMaterial({color:0x68452d,roughness:1})
+  );
+  trunk.position.y=.45;
+  tree.add(trunk);
+
+  const crown=new THREE.Mesh(
+    new THREE.ConeGeometry(.65,1.6,8),
+    new THREE.MeshStandardMaterial({color:0x39723a,roughness:1})
+  );
+  crown.position.y=1.55;
+  tree.add(crown);
+
+  tree.position.set(x,0,z);
+  tree.scale.setScalar(s);
+  scene.add(tree);
+}
+makeTree(-6,-9,1.3);
+makeTree(7,-12,1.1);
+makeTree(13,-8,.8);
+makeTree(-14,-10,1.0);
+
+const group=new THREE.Group(); group.position.set(0,1.65,-4.8); scene.add(group);
+const frame=new THREE.Mesh(new THREE.BoxGeometry(.78,1.02,.08),new THREE.MeshStandardMaterial({color:0x252525}));
 group.add(frame);
 const tex=new THREE.TextureLoader().load('target.jpg'); tex.colorSpace=THREE.SRGBColorSpace;
-const photo=new THREE.Mesh(new THREE.PlaneGeometry(1.5,2),new THREE.MeshBasicMaterial({map:tex}));
+const photo=new THREE.Mesh(new THREE.PlaneGeometry(.71,.95),new THREE.MeshBasicMaterial({map:tex}));
 photo.position.z=.07; group.add(photo);
 
-for(const r of [.78,.57,.36]){
+for(const r of [.37,.27,.17]){
  const ring=new THREE.Mesh(new THREE.RingGeometry(r-.012,r,.01,64),
  new THREE.MeshBasicMaterial({color:0xff3030,transparent:true,opacity:.8,side:THREE.DoubleSide}));
  ring.position.z=.085; group.add(ring);
 }
 
 const raycaster=new THREE.Raycaster(), controllers=[];
+let audioCtx=null;
+let noiseBuffer=null;
+
+function playGunshot(){
+  try{
+    audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+
+    const now=audioCtx.currentTime;
+
+    // Short noise burst for the "bang".
+    if(!noiseBuffer){
+      const len=Math.floor(audioCtx.sampleRate*.16);
+      noiseBuffer=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+      const data=noiseBuffer.getChannelData(0);
+      for(let i=0;i<len;i++){
+        const decay=1-i/len;
+        data[i]=(Math.random()*2-1)*decay*decay;
+      }
+    }
+
+    const noise=audioCtx.createBufferSource();
+    noise.buffer=noiseBuffer;
+    const filter=audioCtx.createBiquadFilter();
+    filter.type='lowpass';
+    filter.frequency.setValueAtTime(1800,now);
+    filter.frequency.exponentialRampToValueAtTime(350,now+.12);
+
+    const gain=audioCtx.createGain();
+    gain.gain.setValueAtTime(.75,now);
+    gain.gain.exponentialRampToValueAtTime(.001,now+.14);
+
+    noise.connect(filter).connect(gain).connect(audioCtx.destination);
+    noise.start(now);
+    noise.stop(now+.16);
+
+    // Low thump underneath.
+    const osc=audioCtx.createOscillator();
+    const og=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(110,now);
+    osc.frequency.exponentialRampToValueAtTime(45,now+.1);
+    og.gain.setValueAtTime(.38,now);
+    og.gain.exponentialRampToValueAtTime(.001,now+.1);
+    osc.connect(og).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now+.11);
+  }catch(e){}
+}
+
+function createBulletHole(point){
+  // Convert the impact point from world coordinates to the target's local space.
+  const local=group.worldToLocal(point.clone());
+
+  const mark=new THREE.Group();
+  mark.position.set(local.x,local.y,.094);
+
+  // Dark central hole.
+  const hole=new THREE.Mesh(
+    new THREE.CircleGeometry(.025,16),
+    new THREE.MeshBasicMaterial({color:0x090909,transparent:true,opacity:.95,depthWrite:false})
+  );
+  mark.add(hole);
+
+  // Slight burnt/impact ring.
+  const burn=new THREE.Mesh(
+    new THREE.RingGeometry(.026,.041,20),
+    new THREE.MeshBasicMaterial({color:0x5a4035,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false})
+  );
+  burn.position.z=.001;
+  mark.add(burn);
+
+  // Tiny debris/splinter specks.
+  for(let i=0;i<5;i++){
+    const a=Math.random()*Math.PI*2;
+    const r=.045+Math.random()*.025;
+    const speck=new THREE.Mesh(
+      new THREE.CircleGeometry(.004+Math.random()*.003,6),
+      new THREE.MeshBasicMaterial({color:0x201814,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false})
+    );
+    speck.position.set(Math.cos(a)*r,Math.sin(a)*r,.002);
+    mark.add(speck);
+  }
+
+  group.add(mark);
+}
+
 function shoot(ray){
- raycaster.ray.copy(ray);
- const hit=raycaster.intersectObject(photo)[0];
- if(hit){score++;document.querySelector('#score').textContent='🎯 Acertos: '+score;
-   group.scale.set(1.08,1.08,1.08); setTimeout(()=>group.scale.set(1,1,1),120);}
+  playGunshot();
+  raycaster.ray.copy(ray);
+  const hit=raycaster.intersectObject(photo)[0];
+
+  if(hit){
+    score++;
+    document.querySelector('#score').textContent='🎯 Acertos: '+score;
+    createBulletHole(hit.point);
+
+    group.scale.set(1.08,1.08,1.08);
+    setTimeout(()=>group.scale.set(1,1,1),120);
+  }
 }
 for(let i=0;i<2;i++){
  const c=renderer.xr.getController(i); scene.add(c);
@@ -97,15 +305,28 @@ function makeLaser(){
   );
 }
 let score=0;
+updateVRScore();
 renderer.domElement.addEventListener('pointerdown',e=>{
  if(renderer.xr.isPresenting)return;
  const m=new THREE.Vector2(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);
  raycaster.setFromCamera(m,camera); shoot(raycaster.ray);
 });
 renderer.setAnimationLoop(t=>{
- const s=t/1000; group.position.x=Math.sin(s*.8)*.35;
- group.position.y=1.6+Math.sin(s*1.1)*.08;
- group.rotation.y=Math.sin(s*.55)*.12;
+ const s=t/1000;
+
+ // Movimento 360° bem mais lento: ~52 segundos por volta.
+ // O alvo também varia suavemente de distância e altura.
+ const angle=s*.12;
+ const radius=5.8 + Math.sin(s*.23)*1.0;
+ group.position.x=Math.sin(angle)*radius;
+ group.position.z=-Math.cos(angle)*radius;
+ group.position.y=1.65 + Math.sin(s*.31)*.42;
+
+ // O rosto sempre fica de frente para o jogador.
+ const dx=camera.position.x-group.position.x;
+ const dz=camera.position.z-group.position.z;
+ group.rotation.y=Math.atan2(dx,dz);
+
  renderer.render(scene,camera);
 });
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
