@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 Game Test 1</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #fff;
+      background:
+        radial-gradient(circle at 20% 10%, #263b70 0, transparent 35%),
+        radial-gradient(circle at 80% 90%, #40205f 0, transparent 35%),
+        #090b14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 18px;
+    }
+
+    .container {
+      width: min(900px, 100%);
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 38px;
+    }
+
+    .logo {
+      font-size: 64px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 6vw, 54px);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin: 12px 0 0;
+      color: #aeb7d0;
+      font-size: 17px;
+    }
+
+    .games {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .game {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      padding: 26px;
+      min-height: 190px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px;
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(10px);
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .game:hover {
+      transform: translateY(-5px);
+      background: rgba(255,255,255,.11);
+      border-color: rgba(255,255,255,.25);
+    }
+
+    .icon {
+      font-size: 44px;
+      margin-bottom: 15px;
+    }
+
+    .game h2 {
+      margin: 0 0 9px;
+      font-size: 23px;
+    }
+
+    .game p {
+      margin: 0;
+      color: #aeb7d0;
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.1);
+      color: #dce3f7;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 34px;
+      color: #68728c;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <div class="logo">🎮</div>
+      <h1>Game Test 1</h1>
+      <p class="subtitle">Experimentos e jogos feitos para navegador e Meta Quest</p>
+    </header>
+
+    <section class="games">
+      <a class="game" href="./quest_face_target/">
+        <div class="icon">🎯</div>
+        <h2>Face Target VR</h2>
+        <p>Entre no modo VR, mire nos alvos e tente fazer a maior pontuação.</p>
+        <span class="badge">🥽 Meta Quest • WebXR</span>
+      </a>
+
+      <!-- Adicione novos jogos copiando um bloco .game e alterando o href -->
+
+    </section>
+
+    <footer>
+      Mais jogos em breve 🚀
+    </footer>
+  </main>
+</body>
+</html>
